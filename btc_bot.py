@@ -255,8 +255,8 @@ def send_telegram_message(data):
         f"⏱️ 5M ADVANCED CANDLE SIGNAL\n"
         f"(At 2m 30s Mark)\n\n"
         f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}\n"
-        f"💵 Candle Open: ${data['open_price']:,.2f}\n"
-        f"📊 Mid-Candle: ${data['current_price']:,.2f} ({change_sign}{price_diff:,.2f})\n"
+        f"💵 Candle Open: \${data['open_price']:,.2f}\n"
+        f"📊 Mid-Candle: \${data['current_price']:,.2f} ({change_sign}{price_diff:,.2f})\n"
         f"🕯️ Prev Candle: {data['prev_status']}\n"
         f"🔍 Patterns: {data['patterns']}\n"
         f"📈 Trend: {data['ema_trend']}\n"
@@ -284,23 +284,4 @@ def send_telegram_message(data):
 
 def wait_for_target_time():
     current_time = time.time()
-    current_candle_start = (int(current_time) // 300) * 300
-    target_time = current_candle_start + 150
-
-    if current_time >= target_time:
-        target_time += 300
-
-    sleep_duration = target_time - current_time
-    time.sleep(sleep_duration)
-
-if __name__ == "__main__":
-    print("বট সক্রিয় হয়েছে। কানেকশন যাচাই করতে তাৎক্ষণিক একটি মেসেজ পাঠানো হচ্ছে...")
-    initial_check = get_market_analysis(SYMBOL)
-    send_telegram_message(initial_check)
-
-    while True:
-        wait_for_target_time()
-        metrics = get_market_analysis(SYMBOL)
-        send_telegram_message(metrics)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ২:৩০ মিনিটের সিগন্যাল পাঠানো হয়েছে।")
-        time.sleep(5)
+    current_candle_start = (int(current_time) // 300) * 30
