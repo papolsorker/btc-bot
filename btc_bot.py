@@ -1,6 +1,25 @@
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import time
 import requests
 from datetime import datetime
+
+# --- Render Web Service Port Binding ---
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Bot is alive and running!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
+# ---------------------------------------
 
 # ----------------- কনফিগারেশন -----------------
 BOT_TOKEN = "9031478970:AAEREznuQIuggHGG3IMa3Lp_Zxn62MtpmYg"
@@ -8,7 +27,6 @@ CHAT_ID = "8431903206"
 SYMBOL = "BTCUSDT"
 TIMEFRAME = "5m"
 
-# নির্ভরযোগ্য বাইনান্স ব্যাকআপ এপিআই
 BINANCE_ENDPOINTS = [
     "https://api.binance.com",
     "https://api1.binance.com",
@@ -58,7 +76,6 @@ def calculate_rsi(prices, period=14):
 
 def get_market_analysis(symbol="BTCUSDT"):
     try:
-        # ১. ক্যান্ডেলস্টিক ডেটা
         kline_res = fetch_binance_data(f"/api/v3/klines?symbol={symbol}&interval={TIMEFRAME}&limit=50")
         if not kline_res:
             print("বাইনান্স ক্যান্ডেল ডেটা লোড হতে ব্যর্থ হয়েছে।")
@@ -89,7 +106,6 @@ def get_market_analysis(symbol="BTCUSDT"):
         ema_21 = calculate_ema(close_prices, 21)
         rsi = calculate_rsi(close_prices, 14)
 
-        # ২. অর্ডার ফ্লো ও ভলিউম ডেল্টা
         trades_res = fetch_binance_data(f"/api/v3/trades?symbol={symbol}&limit=500")
         if trades_res:
             buy_vol = sum([float(t['qty']) for t in trades_res if not t['isBuyerMaker']])
@@ -100,7 +116,6 @@ def get_market_analysis(symbol="BTCUSDT"):
             bs_ratio = 1.0
             delta = 0.0
 
-        # ৩. অর্ডার বুক ডেটা
         depth_res = fetch_binance_data(f"/api/v3/depth?symbol={symbol}&limit=20")
         if depth_res:
             bid_vol = sum([float(b[1]) for b in depth_res.get('bids', [])])
@@ -109,12 +124,10 @@ def get_market_analysis(symbol="BTCUSDT"):
         else:
             imbalance = 0.0
 
-        # ৪. ক্যান্ডেলস্টিক স্ট্রাকচার ও প্যাটার্ন
         detected_patterns = []
         bullish_score = 0
         bearish_score = 0
 
-        # Previous Candle Structure
         prev_body = abs(prev_close - prev_open)
         prev_is_green = prev_close >= prev_open
         lower_wick = (prev_open - prev_low) if prev_is_green else (prev_close - prev_low)
@@ -127,7 +140,6 @@ def get_market_analysis(symbol="BTCUSDT"):
             bearish_score += 15
             detected_patterns.append("Shooting Star Rejection")
 
-        # Consecutive Momentum
         prev2_is_green = prev2_close >= prev2_open
         prev3_is_green = prev3_close >= prev3_open
 
@@ -142,7 +154,6 @@ def get_market_analysis(symbol="BTCUSDT"):
         elif not prev_is_green and not prev2_is_green:
             bearish_score += 8
 
-        # Engulfing
         curr_body = abs(curr_price - curr_open)
         curr_is_green = curr_price >= curr_open
 
@@ -153,7 +164,6 @@ def get_market_analysis(symbol="BTCUSDT"):
             bearish_score += 20
             detected_patterns.append("Bearish Engulfing")
 
-        # Volume Expansion
         past_volumes = [float(k[5]) for k in kline_res[-6:-1]]
         avg_vol = sum(past_volumes) / len(past_volumes) if past_volumes else 1.0
         projected_vol = curr_vol * 2.0
@@ -166,7 +176,6 @@ def get_market_analysis(symbol="BTCUSDT"):
                 bearish_score += 15
                 detected_patterns.append("High Volume (Bearish)")
 
-        # অন্যান্য টেকনিক্যাল ফ্যাক্টর
         if curr_price > curr_open:
             bullish_score += 15
         else:
@@ -242,7 +251,6 @@ def send_telegram_message(data):
     change_sign = "+" if data['current_price'] >= data['open_price'] else ""
     price_diff = data['current_price'] - data['open_price']
 
-    # সাধারণ টেক্সট ফরম্যাট (কোনও HTML বা Markdown ট্যাগ নেই, ফলে এরর আসার সুযোগ শূন্য)
     text = (
         f"⏱️ 5M ADVANCED CANDLE SIGNAL\n"
         f"(At 2m 30s Mark)\n\n"
@@ -277,7 +285,7 @@ def send_telegram_message(data):
 def wait_for_target_time():
     current_time = time.time()
     current_candle_start = (int(current_time) // 300) * 300
-    target_time = current_candle_start + 150  # ১৫০ সেকেন্ড = ২ মিনিট ৩০ সেকেন্ড
+    target_time = current_candle_start + 150
 
     if current_time >= target_time:
         target_time += 300
@@ -286,7 +294,7 @@ def wait_for_target_time():
     time.sleep(sleep_duration)
 
 if __name__ == "__main__":
-    print("বট সক্রিয় হয়েছে। কানেকশন যাচাই করতে তাৎক্ষণিক একটি মেসেজ পাঠানো হচ্ছে...")
+    print("বট সক্রিয় হয়েছে। কানেকশন যাচাই করতে তাৎক্ষণিক একটি মেসেজ পাঠানো হচ্ছে...")
     initial_check = get_market_analysis(SYMBOL)
     send_telegram_message(initial_check)
 
